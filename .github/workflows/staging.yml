@@ -1,0 +1,52 @@
+name: Platform staging
+on:
+  workflow_call:
+    inputs:
+      platform-ref:
+        type: string
+        required: true
+      config:
+        type: string
+        default: platform.json
+permissions:
+  contents: read
+  deployments: write
+  id-token: write
+concurrency:
+  group: platform-staging
+  cancel-in-progress: false
+jobs:
+  release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    environment: staging
+    env:
+      PLATFORM_REF: ${{ inputs.platform-ref }}
+      CONFIG: ${{ inputs.config }}
+    steps:
+      - name: Validate platform pin
+        env:
+          PLATFORM_REF: ${{ inputs.platform-ref }}
+        run: '[[ "$PLATFORM_REF" =~ ^[0-9a-f]{40}$ ]]'
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: paris-phan/platform
+          ref: ${{ inputs.platform-ref }}
+          path: _platform
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          path: project
+          persist-credentials: false
+      - name: Build deploy and verify release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 _platform/scripts/release.py stage --root project --config "$CONFIG" --bundle release-bundle
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: release-${{ github.run_id }}-${{ github.run_attempt }}
+          path: release-bundle/
+          if-no-files-found: error
+          retention-days: 90
+          include-hidden-files: true

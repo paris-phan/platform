@@ -1,0 +1,14 @@
+# Replace PLATFORM_COMMIT_SHA in both places with the same published 40-character commit SHA.
+name: Platform ci
+on:
+  pull_request:
+    branches: [main, production]
+  push:
+    branches: [main, production]
+permissions:
+  contents: read
+jobs:
+  check:
+    uses: paris-phan/platform/.github/workflows/ci.yml@PLATFORM_COMMIT_SHA
+    with:
+      platform-ref: 'PLATFORM_COMMIT_SHA'

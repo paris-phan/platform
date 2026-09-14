@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "repository": "example/project",
+  "platform": {
+    "repository": "paris-phan/platform",
+    "ref": "1111111111111111111111111111111111111111"
+  },
+  "environments": {
+    "staging": {"infisical_environment": "staging"},
+    "production": {"infisical_environment": "production"}
+  },
+  "apps": [
+    {
+      "name": "site",
+      "path": "apps/site",
+      "provider": "custom",
+      "targets": {"staging": "local-staging", "production": "local-production"},
+      "commands": {
+        "check": ["python3", "ops.py", "check"],
+        "build": ["python3", "ops.py", "build"],
+        "deploy": ["python3", "ops.py", "deploy"],
+        "verify": ["python3", "ops.py", "verify"]
+      }
+    }
+  ]
+}

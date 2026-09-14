@@ -1,0 +1,60 @@
+name: Platform rollback
+on:
+  workflow_call:
+    inputs:
+      platform-ref:
+        type: string
+        required: true
+      config:
+        type: string
+        default: platform.json
+      staging-run-id:
+        type: string
+        required: true
+      reason:
+        type: string
+        required: true
+permissions:
+  contents: read
+  actions: read
+  deployments: write
+  id-token: write
+concurrency:
+  group: platform-production
+  cancel-in-progress: false
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/production'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    environment: production
+    env:
+      PLATFORM_REF: ${{ inputs.platform-ref }}
+      CONFIG: ${{ inputs.config }}
+      STAGING_RUN: ${{ inputs.staging-run-id }}
+      REASON: ${{ inputs.reason }}
+    steps:
+      - name: Validate platform pin
+        env:
+          PLATFORM_REF: ${{ inputs.platform-ref }}
+        run: '[[ "$PLATFORM_REF" =~ ^[0-9a-f]{40}$ ]]'
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: paris-phan/platform
+          ref: ${{ inputs.platform-ref }}
+          path: _platform
+          persist-credentials: false
+      - name: Authorize and fetch verified release
+        id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 _platform/scripts/release.py resolve --run-id "$STAGING_RUN" --bundle release-bundle --reason "$REASON" --rollback
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          path: project
+          ref: ${{ steps.resolve.outputs.source }}
+          persist-credentials: false
+      - name: Deploy and verify existing release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 _platform/scripts/release.py deploy --root project --config "$CONFIG" --run-id "$STAGING_RUN" --bundle release-bundle --reason "$REASON" --rollback

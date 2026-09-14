@@ -1,0 +1,25 @@
+# Replace PLATFORM_COMMIT_SHA in both places with the same published 40-character commit SHA.
+name: Platform rollback
+on:
+  workflow_dispatch:
+    inputs:
+      staging-run-id:
+        description: Successful verified staging workflow run ID
+        required: true
+        type: string
+      reason:
+        description: Release or incident reference and reason
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+  deployments: write
+  id-token: write
+jobs:
+  release:
+    uses: paris-phan/platform/.github/workflows/rollback.yml@PLATFORM_COMMIT_SHA
+    with:
+      platform-ref: 'PLATFORM_COMMIT_SHA'
+      staging-run-id: ${{ inputs.staging-run-id }}
+      reason: ${{ inputs.reason }}

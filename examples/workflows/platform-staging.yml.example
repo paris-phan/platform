@@ -1,0 +1,14 @@
+# Replace PLATFORM_COMMIT_SHA in both places with the same published 40-character commit SHA.
+name: Platform staging
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+  deployments: write
+  id-token: write
+jobs:
+  release:
+    uses: paris-phan/platform/.github/workflows/staging.yml@PLATFORM_COMMIT_SHA
+    with:
+      platform-ref: 'PLATFORM_COMMIT_SHA'

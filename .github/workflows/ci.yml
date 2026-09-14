@@ -1,0 +1,37 @@
+name: Platform CI
+on:
+  workflow_call:
+    inputs:
+      platform-ref:
+        type: string
+        required: true
+      config:
+        type: string
+        default: platform.json
+permissions:
+  contents: read
+jobs:
+  check:
+    name: platform-check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      PLATFORM_REF: ${{ inputs.platform-ref }}
+      CONFIG: ${{ inputs.config }}
+    steps:
+      - name: Validate platform pin
+        env:
+          PLATFORM_REF: ${{ inputs.platform-ref }}
+        run: '[[ "$PLATFORM_REF" =~ ^[0-9a-f]{40}$ ]]'
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: paris-phan/platform
+          ref: ${{ inputs.platform-ref }}
+          path: _platform
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          path: project
+          persist-credentials: false
+      - name: Validate and check applications
+        run: python3 _platform/scripts/release.py check --root project --config "$CONFIG"
