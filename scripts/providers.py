@@ -77,7 +77,7 @@ def render(service, image, timeout=900):
         value = request(base + '/deploys/' + urllib.parse.quote(identifier, safe=''), token)
         state = value['status']
         if state == 'live':
-            require(value.get('image', {}).get('sha') in (image.split('@')[1], image.split(':')[-1]), 'Render deployed a different image digest')
+            require(value.get('image', {}).get('ref') == image, 'Render deployed a different image digest')
             print(f'Render deployment {identifier} live')
             return
         require(state not in ('build_failed', 'update_failed', 'pre_deploy_failed', 'canceled', 'deactivated'), 'Render deployment failed: ' + state)

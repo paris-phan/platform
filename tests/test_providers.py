@@ -40,6 +40,30 @@ class SecretBoundary(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'automatic deployment'):
                 providers.render('srv-example', 'registry.example/api@sha256:' + 'a' * 64)
 
+    def test_render_verifies_the_deployed_image_reference(self):
+        image = 'registry.example/api@sha256:' + 'a' * 64
+        with patch.dict(os.environ, {'RENDER_API_KEY': 'test-only'}), patch.object(
+                providers, 'request', side_effect=[
+                    {'autoDeploy': 'no'},
+                    {'id': 'dep-example'},
+                    {'status': 'live', 'image': {'ref': image, 'sha': 'sha256:' + 'b' * 64}},
+                ]):
+            providers.render('srv-example', image)
+
+    def test_render_rejects_a_different_deployed_image_reference(self):
+        image = 'registry.example/api@sha256:' + 'a' * 64
+        with patch.dict(os.environ, {'RENDER_API_KEY': 'test-only'}), patch.object(
+                providers, 'request', side_effect=[
+                    {'autoDeploy': 'no'},
+                    {'id': 'dep-example'},
+                    {'status': 'live', 'image': {
+                        'ref': 'registry.example/api@sha256:' + 'b' * 64,
+                        'sha': 'sha256:' + 'a' * 64,
+                    }},
+                ]):
+            with self.assertRaisesRegex(ValueError, 'different image digest'):
+                providers.render('srv-example', image)
+
 
 if __name__ == '__main__':
     unittest.main()
