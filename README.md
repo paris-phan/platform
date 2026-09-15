@@ -10,7 +10,7 @@ See scripts/ for application specific commands and workflows. i curr use
 - render for simple container deployments
 - cloudflare workers/pages, R2
 
-Pushes to `main` build and deploy staging. Production promotes the same verified artifact without rebuilding it. Rollback uses a previously successful production release.
+Pushes to `main` build and deploy staging. Production promotes the same verified artifact without rebuilding it, either by merging the promotion pull request that `promote.yml` maintains or by manual dispatch. Rollback uses a previously successful production release.
 
 ## Using it
 
