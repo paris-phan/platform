@@ -61,6 +61,6 @@ Nonsecret configuration changes follow the normal build/staging/promotion path. 
 
 ## Upgrade the platform
 
-Review the selected revision's changes, including configuration and rollback compatibility. Update every consumer workflow `uses` pin, their `platform-ref` inputs, and `platform.json` together to the same full published commit SHA. Run configuration validation, application CI, and staging before promotion; exercise recovery when deployment behavior changes.
+Review the selected revision's changes, including configuration and rollback compatibility. Update every consumer workflow `uses` pin, their `platform-ref` inputs, and `platform.json` together to the same full published commit SHA. If the organization or repository restricts Actions to selected workflows (recommended), update that allowlist to the same paths at the new SHA in the same change; a pin the allowlist does not name fails at workflow startup with no job and an empty `referenced_workflows`, which GitHub reports only as a "workflow file issue". Run configuration validation, application CI, and staging before promotion; exercise recovery when deployment behavior changes.
 
 Rollback uses the currently pinned coordinator with historical application configuration/hooks. If those versions are incompatible, restore the earlier approved coordinator pin through a reviewed workflow change first. Each project chooses when to upgrade; floating tags must not silently change deployment behavior.
