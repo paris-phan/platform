@@ -8,6 +8,9 @@ on:
       config:
         type: string
         default: platform.json
+      runner:
+        type: string
+        default: ubuntu-24.04
 permissions:
   contents: read
   deployments: write
@@ -18,7 +21,7 @@ concurrency:
 jobs:
   release:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-24.04
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 60
     environment: staging
     env:

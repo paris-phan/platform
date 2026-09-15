@@ -25,7 +25,7 @@ The workflows consume these settings; they do not create or reconcile them. Revi
 
 ## Defaults and project choices
 
-Defaults are Render image-backed APIs/workers, Cloudflare Pages direct-upload frontends and domains, Infisical Cloud, and GitHub Actions on Ubuntu 24.04. Bundles request 90-day artifact retention; project registries must retain referenced image digests for the promised recovery window.
+Defaults are Render image-backed APIs/workers, Cloudflare Pages direct-upload frontends and domains, Infisical Cloud, and GitHub Actions on Ubuntu 24.04. Consumer workflows may select a compatible GitHub Actions runner label through the reusable workflows' `runner` input; the project owns that runner's availability and trust. Bundles request 90-day artifact retention; project registries must retain referenced image digests for the promised recovery window.
 
 Languages, frameworks, dependency installation, resource topology, tests, migration logic, health checks, and upgrade timing remain project choices. Applications deploy in configuration order. Other workloads use the same command contract rather than project-specific branches in the shared workflows.
 
