@@ -1,0 +1,19 @@
+# Replace PLATFORM_COMMIT_SHA with the same published 40-character commit SHA used by the other platform workflows.
+# Optional: promotion by pull request. Requires platform-ship.yml.
+name: Platform promote
+on:
+  workflow_run:
+    workflows: [Platform staging]
+    types: [completed]
+    branches: [main]
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  promote:
+    uses: paris-phan/platform/.github/workflows/promote.yml@PLATFORM_COMMIT_SHA
+    with:
+      run-id: ${{ github.event.workflow_run.id }}
+      run-url: ${{ github.event.workflow_run.html_url }}
+      head-sha: ${{ github.event.workflow_run.head_sha }}
+      conclusion: ${{ github.event.workflow_run.conclusion }}

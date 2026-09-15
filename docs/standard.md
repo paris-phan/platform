@@ -19,7 +19,7 @@ The platform owns configuration validation, release identification, promotion ch
 
 Protect `main` and `production` against force pushes and deletion. Require the actual CI check after it has run (`check / platform-check` with the supplied consumer example). Keep merge commits enabled for promotion ancestry. Default workflow tokens to read-only, disable workflow PR approvals, and enable secret scanning/push protection where available.
 
-Use GitHub Environment branch policies of type `branch`: only `main` for staging, only `production` for production. For a team, require independent PR/code-owner review, resolved conversations, and a production environment reviewer with self-review and administrative bypass disabled. For a solo project, explicit promotion and manual production dispatch provide the operator gate; do not configure an impossible second-person approval requirement. Keep administrative access narrow in either case.
+Use GitHub Environment branch policies of type `branch`: only `main` for staging, only `production` for production. For a team, require independent PR/code-owner review, resolved conversations, and a production environment reviewer with self-review and administrative bypass disabled. For a solo project, explicit promotion provides the operator gate, whether that is merging the promotion pull request or a manual production dispatch; do not configure an impossible second-person approval requirement. Keep administrative access narrow in either case.
 
 The workflows consume these settings; they do not create or reconcile them. Review workflow and deployment-hook changes as code with access to production credentials.
 

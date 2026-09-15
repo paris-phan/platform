@@ -1,0 +1,13 @@
+# Replace PLATFORM_COMMIT_SHA with the same published 40-character commit SHA used by the other platform workflows.
+# Optional: promotion by pull request. Requires platform-promote.yml.
+name: Platform ship
+on:
+  push:
+    branches: [production]
+permissions:
+  contents: read
+  actions: write
+  pull-requests: read
+jobs:
+  ship:
+    uses: paris-phan/platform/.github/workflows/ship.yml@PLATFORM_COMMIT_SHA

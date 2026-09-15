@@ -1,0 +1,86 @@
+name: Platform promote
+# Keeps one main -> production pull request pointing at the newest verified
+# staging run. Call it from the consumer's workflow_run trigger on the staging
+# workflow. A successful run opens or refreshes the pull request and marks it
+# ready; a failed run converts it to a draft and comments. Merging the pull
+# request is the promotion; ship.yml turns the merge into a production dispatch.
+# The workflow token opens the pull request, so the consumer's pull_request
+# workflows do not run on it; every commit it carries already passed the
+# consumer's main checks and a full staging release.
+on:
+  workflow_call:
+    inputs:
+      run-id:
+        description: Staging workflow run ID
+        type: string
+        required: true
+      run-url:
+        type: string
+        required: true
+      head-sha:
+        type: string
+        required: true
+      conclusion:
+        description: Staging workflow run conclusion
+        type: string
+        required: true
+      runner:
+        type: string
+        default: ubuntu-24.04
+      main-branch:
+        type: string
+        default: main
+      production-branch:
+        type: string
+        default: production
+permissions:
+  contents: read
+  pull-requests: write
+concurrency:
+  group: platform-promote
+  cancel-in-progress: false
+jobs:
+  promote:
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      RUN_ID: ${{ inputs.run-id }}
+      RUN_URL: ${{ inputs.run-url }}
+      RUN_SHA: ${{ inputs.head-sha }}
+      CONCLUSION: ${{ inputs.conclusion }}
+      MAIN: ${{ inputs.main-branch }}
+      PRODUCTION: ${{ inputs.production-branch }}
+    steps:
+      - name: Validate inputs
+        run: '[[ "$RUN_ID" =~ ^[0-9]+$ && "$RUN_SHA" =~ ^[0-9a-f]{40}$ ]]'
+      - name: Locate the promotion pull request
+        id: pr
+        run: |
+          number="$(gh pr list --repo "$REPO" --base "$PRODUCTION" --head "$MAIN" --state open --json number --jq '.[0].number // empty')"
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+      - name: Point the pull request at the verified run
+        if: env.CONCLUSION == 'success'
+        env:
+          NUMBER: ${{ steps.pr.outputs.number }}
+        run: |
+          body="$(printf 'Promotes %s to %s. Merging dispatches the production workflow with the staging run below; the bundle is reused, never rebuilt.\n\nStaging-Run: %s\nSource: %s\nVerified: %s\n' "$MAIN" "$PRODUCTION" "$RUN_ID" "$RUN_SHA" "$RUN_URL")"
+          if [[ -z "$NUMBER" ]]; then
+            if [[ "$(gh api "repos/$REPO/compare/$PRODUCTION...$MAIN" --jq .ahead_by)" == "0" ]]; then
+              echo "$PRODUCTION already contains $MAIN; nothing to promote"
+              exit 0
+            fi
+            gh pr create --repo "$REPO" --base "$PRODUCTION" --head "$MAIN" \
+              --title "Promote $MAIN to $PRODUCTION" --body "$body"
+          else
+            gh pr edit "$NUMBER" --repo "$REPO" --body "$body"
+            gh pr ready "$NUMBER" --repo "$REPO" || true
+          fi
+      - name: Hold the pull request while the source branch is red
+        if: env.CONCLUSION != 'success' && steps.pr.outputs.number != ''
+        env:
+          NUMBER: ${{ steps.pr.outputs.number }}
+        run: |
+          gh pr ready "$NUMBER" --repo "$REPO" --undo || true
+          gh pr comment "$NUMBER" --repo "$REPO" --body "Staging run $RUN_URL for $RUN_SHA finished with $CONCLUSION. This pull request still targets the last verified run and stays a draft until $MAIN is green again."

@@ -1,0 +1,53 @@
+name: Platform ship
+# Merging the promotion pull request dispatches the consumer's production
+# workflow with the staging run recorded in that pull request. Call it from a
+# push trigger on the production branch. A push that did not come from a merged
+# promotion pull request fails here and deploys nothing; the production
+# workflow itself still performs every authorization and provenance check.
+on:
+  workflow_call:
+    inputs:
+      runner:
+        type: string
+        default: ubuntu-24.04
+      production-workflow:
+        description: Consumer workflow file that calls production.yml
+        type: string
+        default: platform-production.yml
+      production-branch:
+        type: string
+        default: production
+permissions:
+  contents: read
+  actions: write
+  pull-requests: read
+concurrency:
+  group: platform-ship
+  cancel-in-progress: false
+jobs:
+  ship:
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      SHA: ${{ github.sha }}
+      WORKFLOW: ${{ inputs.production-workflow }}
+      PRODUCTION: ${{ inputs.production-branch }}
+    steps:
+      - name: Dispatch the production release named by the merged pull request
+        run: |
+          pr="$(gh api "repos/$REPO/commits/$SHA/pulls" --jq "[.[] | select(.base.ref == \"$PRODUCTION\" and .merged_at != null)][0]")"
+          if [[ -z "$pr" || "$pr" == "null" ]]; then
+            echo "::error::no merged promotion pull request for $SHA; dispatch $WORKFLOW manually"
+            exit 1
+          fi
+          number="$(jq -r .number <<<"$pr")"
+          run_id="$(jq -r .body <<<"$pr" | sed -n 's/^Staging-Run: \([0-9]\{1,\}\)\r\{0,1\}$/\1/p' | head -n 1)"
+          if [[ -z "$run_id" ]]; then
+            echo "::error::pull request #$number has no Staging-Run line"
+            exit 1
+          fi
+          gh workflow run "$WORKFLOW" --repo "$REPO" --ref "$PRODUCTION" \
+            -f "staging-run-id=$run_id" -f "reason=promotion #$number from staging run $run_id"
+          echo "dispatched $WORKFLOW for staging run $run_id (promotion #$number)"
