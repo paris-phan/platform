@@ -142,6 +142,32 @@ class Lifecycle(unittest.TestCase):
         with patch('release.api', side_effect=unpromoted), self.assertRaisesRegex(ValueError, 'not promoted'):
             release.resolve('example/project', '42', self.base / 'promoted', False, 'release')
 
+    def test_foreign_environment_deployment_does_not_block_promotion(self):
+        # A job that merely declares `environment: production` (a store build dispatched from the
+        # production branch) makes GitHub record a deployment with no payload and the branch head.
+        # It is not a release: ordinary promotion must order itself against the coordinator's own
+        # last release, not against that merge commit — which no main source is ever "ahead" of.
+        self.invoke('stage')
+        os.environ['GITHUB_REF'] = 'refs/heads/production'
+        self.invoke('deploy')
+        foreign = {'id': 99, 'sha': 'f' * 40, 'ref': 'production', 'environment': 'production', 'payload': {}}
+        self.records.append(foreign)
+        self.states[99] = [{'state': 'success'}]
+        original = self.api
+        def compare(path, data=None, method=None):
+            if '/compare/' in path and path.split('/compare/')[1].startswith('f' * 40):
+                return {'status': 'diverged'}
+            return original(path, data, method)
+        with patch('release.api', side_effect=compare):
+            self.resolve(self.base / 'promoted')
+        # The same ordering guard still fires when the coordinator's OWN last release is ahead.
+        def backwards(path, data=None, method=None):
+            if path.endswith(f'/compare/{self.sha}...{self.sha}'):
+                return {'status': 'behind'}
+            return original(path, data, method)
+        with patch('release.api', side_effect=backwards), self.assertRaisesRegex(ValueError, 'backwards'):
+            self.resolve(self.base / 'promoted-2')
+
     def test_failure_records_failed_deployment(self):
         self.invoke('stage')
         os.environ['GITHUB_REF'] = 'refs/heads/production'

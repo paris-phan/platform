@@ -78,6 +78,11 @@ def deployment(repo, source, environment, run, operation, reason, run_attempt, b
     return data['id']
 
 
+def release_payload(dep):
+    payload = dep.get('payload') or {}
+    return json.loads(payload) if isinstance(payload, str) else payload
+
+
 def status(repo, identifier, state):
     api(f'/repos/{repo}/deployments/{identifier}/statuses', {'state': state, 'auto_inactive': False,
         'log_url': f"https://github.com/{repo}/actions/runs/{os.environ.get('GITHUB_RUN_ID', '')}"})
@@ -173,9 +178,7 @@ def resolve(repo, run_id, bundle, rollback, reason):
     if rollback:
         found = False
         for dep in pages(f'/repos/{repo}/deployments?environment=production'):
-            payload = dep.get('payload') or {}
-            if isinstance(payload, str):
-                payload = json.loads(payload)
+            payload = release_payload(dep)
             if (dep['sha'] == source and str(payload.get('staging_run_id')) == str(run_id)
                     and payload.get('staging_run_attempt') == run['run_attempt']):
                 statuses = api(f"/repos/{repo}/deployments/{dep['id']}/statuses?per_page=100")
@@ -185,8 +188,14 @@ def resolve(repo, run_id, bundle, rollback, reason):
                     break
         require(found, 'rollback release has no successful production deployment')
     else:
-        # A backwards rollout must use recovery authorization, not ordinary promotion.
+        # A backwards rollout must use recovery authorization, not ordinary promotion. Only the
+        # coordinator's own releases count as "deployed": any job that declares
+        # `environment: production` (a store build dispatched from the production branch, say)
+        # makes GitHub record a deployment too, with an empty payload and the BRANCH head — a
+        # promotion merge commit that no main-branch source can ever be ahead of.
         for dep in pages(f'/repos/{repo}/deployments?environment=production'):
+            if release_payload(dep).get('operation') not in ('deploy', 'rollback'):
+                continue
             states = api(f"/repos/{repo}/deployments/{dep['id']}/statuses?per_page=1")
             if states and states[0]['state'] == 'success':
                 order = api(f"/repos/{repo}/compare/{dep['sha']}...{source}")
