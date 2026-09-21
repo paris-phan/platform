@@ -41,7 +41,7 @@ jobs:
         env:
           PLATFORM_REF: ${{ inputs.platform-ref }}
         run: '[[ "$PLATFORM_REF" =~ ^[0-9a-f]{40}$ ]]'
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           repository: paris-phan/platform
           ref: ${{ inputs.platform-ref }}
@@ -52,7 +52,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: python3 _platform/scripts/release.py resolve --run-id "$STAGING_RUN" --bundle release-bundle --reason "$REASON"
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           path: project
           ref: ${{ steps.resolve.outputs.source }}
